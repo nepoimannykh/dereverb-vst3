@@ -21,13 +21,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout ClearRoomAudioProcessor::cre
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> values;
     values.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { amountId, 1 }, "Reduction",
-        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.1f }, 80.0f, "%"));
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.1f }, 100.0f, "%"));
     values.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { tailId, 1 }, "Room Tail",
-        juce::NormalisableRange<float> { 80.0f, 1200.0f, 1.0f, 0.45f }, 420.0f, " ms"));
+        juce::NormalisableRange<float> { 80.0f, 1200.0f, 1.0f, 0.45f }, 1200.0f, " ms"));
     values.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { focusId, 1 }, "Voice Protect",
-        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.1f }, 25.0f, "%"));
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.1f }, 0.0f, "%"));
     values.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { mixId, 1 }, "Mix",
         juce::NormalisableRange<float> { 0.0f, 100.0f, 0.1f }, 100.0f, "%"));

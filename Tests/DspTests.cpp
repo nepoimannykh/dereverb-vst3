@@ -36,6 +36,19 @@ int main()
     constexpr int sampleCount = 96000;
     int failures = 0;
 
+    ClearRoomAudioProcessor defaultsProcessor;
+    const auto defaultValue = [&] (const char* id)
+    {
+        return defaultsProcessor.parameters.getParameter (id)->convertFrom0to1 (
+            defaultsProcessor.parameters.getParameter (id)->getDefaultValue());
+    };
+    const bool defaultsPass = std::abs (defaultValue ("amount") - 100.0f) < 0.01f
+                           && std::abs (defaultValue ("tail") - 1200.0f) < 0.01f
+                           && std::abs (defaultValue ("focus")) < 0.01f
+                           && std::abs (defaultValue ("mix") - 100.0f) < 0.01f;
+    std::cout << "requested parameter defaults: " << (defaultsPass ? "PASS" : "FAIL") << '\n';
+    failures += defaultsPass ? 0 : 1;
+
     // Fairlight tracks may be mono, stereo, 5.1, 7.1, or adaptive. The processor must
     // accept matching multichannel input/output and its editor must construct normally.
     ClearRoomAudioProcessor hostProcessor;
