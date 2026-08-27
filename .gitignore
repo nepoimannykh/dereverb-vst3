@@ -1,0 +1,28 @@
+# CMake and generated build trees
+/build/
+/build-*/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/Makefile
+
+# IDE and operating-system files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+/:memory:.ses
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Keep the distributable plug-in committed.
+!/Release/
+!/Release/JenyaDereverb.vst3/
+
+# Redundant unstripped SDK libraries; the required stripped runtime is retained at
+# ThirdParty/libonnxruntime.dylib.
+/ThirdParty/onnxruntime-osx-universal2-1.23.2/lib/
