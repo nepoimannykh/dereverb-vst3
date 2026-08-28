@@ -3,11 +3,11 @@
 #include <JuceHeader.h>
 #include <onnxruntime_cxx_api.h>
 
-class NeuralEnhancer
+class NeuralEnhancer : private juce::Thread
 {
 public:
     NeuralEnhancer();
-    ~NeuralEnhancer();
+    ~NeuralEnhancer() override;
     bool prepare (double sampleRate, int channels);
     void reset();
     void setStrength (float value) noexcept { strength = juce::jlimit (0.0f, 1.0f, value); }
@@ -37,7 +37,17 @@ private:
     };
 
     void processFrame (Channel&);
+    void run() override;
+    void applyCompletedFrames();
     void initialiseState (std::vector<float>&);
+
+    struct Job { int channel = 0; int writePosition = 0; std::array<float, bins * 2> spectrum {}; };
+    struct Result { int channel = 0; int writePosition = 0; std::array<float, bins * 2> enhanced {}; };
+    juce::CriticalSection queueLock;
+    juce::WaitableEvent queueEvent;
+    std::deque<Job> jobs;
+    std::deque<Result> results;
+    std::vector<std::vector<float>> workerStates;
 
     Ort::Env environment { ORT_LOGGING_LEVEL_WARNING, "JenyaDereverb" };
     Ort::SessionOptions sessionOptions;
