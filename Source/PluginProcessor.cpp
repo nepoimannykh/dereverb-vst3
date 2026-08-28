@@ -36,42 +36,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout ClearRoomAudioProcessor::cre
 
 void ClearRoomAudioProcessor::prepareToPlay (double sampleRate, int)
 {
-    currentSampleRate = sampleRate;
-    hostToModelRatio = 48000.0 / juce::jmax (1.0, sampleRate);
-    resamplePhase.fill (0.0);
-    resampledOutput.fill (0.0f);
-    for (auto& state : postStates)
-        state = {};
-    // DPDFNet is native 48 kHz; the adapter below keeps it usable at common host rates.
-    neural.prepare (48000.0, juce::jmin (getTotalNumInputChannels(), maximumChannels));
-    setLatencySamples (neural.isReady() ? juce::roundToInt (neural.getLatencySamples() / hostToModelRatio) : 0);
-}
-
-float ClearRoomAudioProcessor::processVoicePost (int channel, float sample) noexcept
-{
-    auto& state = postStates[static_cast<size_t> (channel)];
-    // 70 Hz one-pole high-pass: removes HVAC/plosive rumble without thinning speech.
-    const float hpCoeff = std::exp (-juce::MathConstants<float>::twoPi * 70.0f
-                                    / static_cast<float> (juce::jmax (1.0, currentSampleRate)));
-    const float hp = hpCoeff * (state.hpY + sample - state.hpX);
-    state.hpX = sample;
-    state.hpY = hp;
-
-    // Fast speech-level compressor with a slower release. This keeps the restored voice
-    // forward while avoiding the pumping behavior of a hard gate.
-    const float detectorInput = std::abs (hp);
-    const float detectorCoeff = detectorInput > state.detector ? 0.35f : 0.035f;
-    state.detector += detectorCoeff * (detectorInput - state.detector);
-    constexpr float threshold = 0.28f;
-    float gain = 1.0f;
-    if (state.detector > threshold)
-    {
-        const float compressed = threshold + (state.detector - threshold) / 3.0f;
-        gain = compressed / juce::jmax (state.detector, 1.0e-6f);
-    }
-    const float compressed = hp * gain * 1.18f;
-    // Soft safety limiter; unlike hard clipping it keeps consonant transients smooth.
-    return std::tanh (compressed) * 0.92f;
+    neural.prepare (sampleRate, juce::jmin (getTotalNumInputChannels(), maximumChannels));
+    setLatencySamples (neural.isReady() ? neural.getLatencySamples() : 0);
 }
 
 bool ClearRoomAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -95,19 +61,7 @@ void ClearRoomAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     {
         auto* samples = buffer.getWritePointer (channel);
         for (int i = 0; i < buffer.getNumSamples(); ++i)
-        {
-            float processed = samples[i];
-            resamplePhase[static_cast<size_t> (channel)] += hostToModelRatio;
-            while (resamplePhase[static_cast<size_t> (channel)] >= 1.0)
-            {
-                resamplePhase[static_cast<size_t> (channel)] -= 1.0;
-                resampledOutput[static_cast<size_t> (channel)] = neural.processSample (channel, samples[i]);
-            }
-            processed = resampledOutput[static_cast<size_t> (channel)];
-            const float wet = processVoicePost (channel, processed);
-            const float mixNow = parameters.getRawParameterValue (mixId)->load() * 0.01f;
-            samples[i] = processed + mixNow * (wet - processed);
-        }
+            samples[i] = neural.processSample (channel, samples[i]);
     }
 
     for (int channel = channels; channel < buffer.getNumChannels(); ++channel)

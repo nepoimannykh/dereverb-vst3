@@ -3,7 +3,6 @@
 #include "BinaryData.h"
 
 NeuralEnhancer::NeuralEnhancer()
-    : juce::Thread ("JenyaDereverb Neural Worker")
 {
     sessionOptions.SetIntraOpNumThreads (1);
     sessionOptions.SetInterOpNumThreads (1);
@@ -12,21 +11,12 @@ NeuralEnhancer::NeuralEnhancer()
 
 NeuralEnhancer::~NeuralEnhancer()
 {
-    signalThreadShouldExit();
-    queueEvent.signal();
-    stopThread (2000);
     if (forwardSetup != nullptr) vDSP_DFT_DestroySetup (static_cast<vDSP_DFT_Setup> (forwardSetup));
     if (inverseSetup != nullptr) vDSP_DFT_DestroySetup (static_cast<vDSP_DFT_Setup> (inverseSetup));
 }
 
 bool NeuralEnhancer::prepare (double sampleRate, int channels)
 {
-    if (isThreadRunning())
-    {
-        signalThreadShouldExit();
-        queueEvent.signal();
-        stopThread (2000);
-    }
     ready = false;
     if (std::abs (sampleRate - 48000.0) > 1.0)
         return false;
@@ -50,9 +40,7 @@ bool NeuralEnhancer::prepare (double sampleRate, int channels)
             window[static_cast<size_t> (i)] = std::sin (0.5f * juce::MathConstants<float>::pi * s * s);
         }
         channelStates.resize (static_cast<size_t> (channels));
-        workerStates.resize (static_cast<size_t> (channels));
         reset();
-        startThread (juce::Thread::Priority::high);
         ready = true;
     }
     catch (const Ort::Exception&)
@@ -83,9 +71,6 @@ void NeuralEnhancer::initialiseState (std::vector<float>& state)
 
 void NeuralEnhancer::reset()
 {
-    const juce::ScopedLock lock (queueLock);
-    jobs.clear();
-    results.clear();
     for (auto& channel : channelStates)
     {
         channel.inputRing.fill (0.0f);
@@ -95,7 +80,6 @@ void NeuralEnhancer::reset()
         channel.position = channel.hopCounter = 0;
         initialiseState (channel.state);
         channel.nextState.assign (stateSize, 0.0f);
-        workerStates[static_cast<size_t> (&channel - channelStates.data())] = channel.state;
     }
     reductionDb.store (0.0f);
 }
@@ -103,7 +87,6 @@ void NeuralEnhancer::reset()
 float NeuralEnhancer::processSample (int channelIndex, float input)
 {
     if (! ready) return input;
-    applyCompletedFrames();
     auto& channel = channelStates[static_cast<size_t> (channelIndex)];
     const float delayed = channel.inputRing[static_cast<size_t> (channel.position)];
     const float enhanced = channel.outputRing[static_cast<size_t> (channel.position)];
@@ -128,103 +111,50 @@ void NeuralEnhancer::processFrame (Channel& channel)
     }
     vDSP_DFT_Execute (static_cast<vDSP_DFT_Setup> (forwardSetup), channel.fftReal.data(), channel.fftImag.data(),
                       channel.fftReal.data(), channel.fftImag.data());
+    double before = 1.0e-12;
     for (int bin = 0; bin < bins; ++bin)
     {
         channel.spectrum[static_cast<size_t> (bin * 2)] = channel.fftReal[static_cast<size_t> (bin)];
         channel.spectrum[static_cast<size_t> (bin * 2 + 1)] = channel.fftImag[static_cast<size_t> (bin)];
+        before += static_cast<double> (channel.fftReal[static_cast<size_t> (bin)]) * channel.fftReal[static_cast<size_t> (bin)]
+                + static_cast<double> (channel.fftImag[static_cast<size_t> (bin)]) * channel.fftImag[static_cast<size_t> (bin)];
     }
 
-    {
-        const juce::ScopedLock lock (queueLock);
-        if (jobs.size() >= 8)
-            return;
-        Job job;
-        job.channel = static_cast<int> (&channel - channelStates.data());
-        job.writePosition = channel.position;
-        job.spectrum = channel.spectrum;
-        jobs.push_back (std::move (job));
-    }
-    queueEvent.signal();
-}
-
-void NeuralEnhancer::applyCompletedFrames()
-{
-    Result result;
-    for (;;)
-    {
-        {
-            const juce::ScopedLock lock (queueLock);
-            if (results.empty()) return;
-            result = std::move (results.front());
-            results.pop_front();
-        }
-        auto& channel = channelStates[static_cast<size_t> (result.channel)];
-        for (int bin = 0; bin < bins; ++bin)
-        {
-            channel.fftReal[static_cast<size_t> (bin)] = result.enhanced[static_cast<size_t> (bin * 2)];
-            channel.fftImag[static_cast<size_t> (bin)] = result.enhanced[static_cast<size_t> (bin * 2 + 1)];
-        }
-        for (int bin = bins; bin < fftSize; ++bin)
-        {
-            const int mirror = fftSize - bin;
-            channel.fftReal[static_cast<size_t> (bin)] = channel.fftReal[static_cast<size_t> (mirror)];
-            channel.fftImag[static_cast<size_t> (bin)] = -channel.fftImag[static_cast<size_t> (mirror)];
-        }
-        vDSP_DFT_Execute (static_cast<vDSP_DFT_Setup> (inverseSetup), channel.fftReal.data(), channel.fftImag.data(),
-                          channel.fftReal.data(), channel.fftImag.data());
-        const float scale = 1.0f / static_cast<float> (fftSize);
-        for (int i = 0; i < fftSize; ++i)
-            channel.outputRing[static_cast<size_t> ((result.writePosition + i) % fftSize)] +=
-                channel.fftReal[static_cast<size_t> (i)] * window[static_cast<size_t> (i)] * scale;
-    }
-}
-
-void NeuralEnhancer::run()
-{
-    while (! threadShouldExit())
-    {
-        Job job;
-        bool hasJob = false;
-        {
-            {
-                const juce::ScopedLock lock (queueLock);
-                if (! jobs.empty())
-                {
-                    job = std::move (jobs.front());
-                    jobs.pop_front();
-                    hasJob = true;
-                }
-            }
-            if (! hasJob)
-            {
-                queueEvent.wait (50);
-                continue;
-            }
-        }
-
-        auto& state = workerStates[static_cast<size_t> (job.channel)];
-        std::array<int64_t, 4> specShape { 1, 1, bins, 2 };
+    std::array<int64_t, 4> specShape { 1, 1, bins, 2 };
     std::array<int64_t, 1> stateShape { stateSize };
     auto memory = Ort::MemoryInfo::CreateCpu (OrtArenaAllocator, OrtMemTypeDefault);
-        std::array<float, bins * 2> enhanced {};
-        std::vector<float> nextState (stateSize, 0.0f);
-        auto specIn = Ort::Value::CreateTensor<float> (memory, job.spectrum.data(), job.spectrum.size(), specShape.data(), specShape.size());
-        auto stateIn = Ort::Value::CreateTensor<float> (memory, state.data(), state.size(), stateShape.data(), stateShape.size());
-        auto specOut = Ort::Value::CreateTensor<float> (memory, enhanced.data(), enhanced.size(), specShape.data(), specShape.size());
-        auto stateOut = Ort::Value::CreateTensor<float> (memory, nextState.data(), nextState.size(), stateShape.data(), stateShape.size());
+    auto specIn = Ort::Value::CreateTensor<float> (memory, channel.spectrum.data(), channel.spectrum.size(), specShape.data(), specShape.size());
+    auto stateIn = Ort::Value::CreateTensor<float> (memory, channel.state.data(), channel.state.size(), stateShape.data(), stateShape.size());
+    auto specOut = Ort::Value::CreateTensor<float> (memory, channel.enhanced.data(), channel.enhanced.size(), specShape.data(), specShape.size());
+    auto stateOut = Ort::Value::CreateTensor<float> (memory, channel.nextState.data(), channel.nextState.size(), stateShape.data(), stateShape.size());
     const char* inputNames[] { "spec", "state_in" };
     const char* outputNames[] { "spec_e", "state_out" };
-        std::array<Ort::Value, 2> inputs { std::move (specIn), std::move (stateIn) };
-        std::array<Ort::Value, 2> outputs { std::move (specOut), std::move (stateOut) };
-        try { session->Run (Ort::RunOptions { nullptr }, inputNames, inputs.data(), 2, outputNames, outputs.data(), 2); }
-        catch (const Ort::Exception&) { continue; }
-        state.swap (nextState);
-        Result result;
-        result.channel = job.channel;
-        result.writePosition = job.writePosition;
-        result.enhanced = enhanced;
-        const juce::ScopedLock lock (queueLock);
-        if (results.size() >= 8) results.pop_front();
-        results.push_back (std::move (result));
+    std::array<Ort::Value, 2> inputs { std::move (specIn), std::move (stateIn) };
+    std::array<Ort::Value, 2> outputs { std::move (specOut), std::move (stateOut) };
+    try { session->Run (Ort::RunOptions { nullptr }, inputNames, inputs.data(), 2, outputNames, outputs.data(), 2); }
+    catch (const Ort::Exception&) { return; }
+    channel.state.swap (channel.nextState);
+
+    double after = 1.0e-12;
+    for (int bin = 0; bin < bins; ++bin)
+    {
+        channel.fftReal[static_cast<size_t> (bin)] = channel.enhanced[static_cast<size_t> (bin * 2)];
+        channel.fftImag[static_cast<size_t> (bin)] = channel.enhanced[static_cast<size_t> (bin * 2 + 1)];
+        after += std::norm (std::complex<float> { channel.fftReal[static_cast<size_t> (bin)], channel.fftImag[static_cast<size_t> (bin)] });
     }
+    for (int bin = bins; bin < fftSize; ++bin)
+    {
+        const int mirror = fftSize - bin;
+        channel.fftReal[static_cast<size_t> (bin)] = channel.fftReal[static_cast<size_t> (mirror)];
+        channel.fftImag[static_cast<size_t> (bin)] = -channel.fftImag[static_cast<size_t> (mirror)];
+    }
+    vDSP_DFT_Execute (static_cast<vDSP_DFT_Setup> (inverseSetup), channel.fftReal.data(), channel.fftImag.data(),
+                      channel.fftReal.data(), channel.fftImag.data());
+    const float scale = 1.0f / static_cast<float> (fftSize);
+    for (int i = 0; i < fftSize; ++i)
+        channel.outputRing[static_cast<size_t> ((channel.position + i) % fftSize)] +=
+            channel.fftReal[static_cast<size_t> (i)] * window[static_cast<size_t> (i)] * scale;
+
+    const float db = juce::jmin (0.0f, juce::Decibels::gainToDecibels (static_cast<float> (std::sqrt (after / before))));
+    reductionDb.store (0.9f * reductionDb.load() + 0.1f * db);
 }

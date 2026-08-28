@@ -141,18 +141,5 @@ int main()
               << (speedPass ? "PASS" : "FAIL") << '\n';
     failures += speedPass ? 0 : 1;
 
-    for (const double rate : { 44100.0, 96000.0 })
-    {
-        ClearRoomAudioProcessor rateProcessor;
-        rateProcessor.prepareToPlay (rate, 4096);
-        juce::AudioBuffer<float> rateBuffer (2, 4096);
-        rateBuffer.clear();
-        rateProcessor.processBlock (rateBuffer, midi);
-        const bool ratePass = finiteAndBounded (rateBuffer, 1.0f)
-                           && rateProcessor.getLatencySamples() > 0;
-        std::cout << rate << " Hz resampling: " << (ratePass ? "PASS" : "FAIL") << '\n';
-        failures += ratePass ? 0 : 1;
-    }
-
     return failures == 0 ? 0 : 1;
 }
