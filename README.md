@@ -52,7 +52,7 @@ cmake --build build-release --config Release -j 4 --target ClearRoomTests
 
 ## Compatibility
 
-- VST3 effect, version 0.3.1
+- VST3 effect, version 0.4.1
 - macOS universal binary (`arm64` and `x86_64`)
 - Mono, stereo, and matching multichannel layouts through 16 channels
 - Tested for construction and 5.1 layout support expected by Fairlight
