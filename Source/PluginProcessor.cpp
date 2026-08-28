@@ -37,10 +37,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout ClearRoomAudioProcessor::cre
 void ClearRoomAudioProcessor::prepareToPlay (double sampleRate, int)
 {
     currentSampleRate = sampleRate;
+    hostToModelRatio = 48000.0 / juce::jmax (1.0, sampleRate);
+    resamplePhase.fill (0.0);
+    resampledOutput.fill (0.0f);
     for (auto& state : postStates)
         state = {};
-    neural.prepare (sampleRate, juce::jmin (getTotalNumInputChannels(), maximumChannels));
-    setLatencySamples (neural.isReady() ? neural.getLatencySamples() : 0);
+    // DPDFNet is native 48 kHz; the adapter below keeps it usable at common host rates.
+    neural.prepare (48000.0, juce::jmin (getTotalNumInputChannels(), maximumChannels));
+    setLatencySamples (neural.isReady() ? juce::roundToInt (neural.getLatencySamples() / hostToModelRatio) : 0);
 }
 
 float ClearRoomAudioProcessor::processVoicePost (int channel, float sample) noexcept
@@ -92,7 +96,14 @@ void ClearRoomAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         auto* samples = buffer.getWritePointer (channel);
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            const float processed = neural.processSample (channel, samples[i]);
+            float processed = samples[i];
+            resamplePhase[static_cast<size_t> (channel)] += hostToModelRatio;
+            while (resamplePhase[static_cast<size_t> (channel)] >= 1.0)
+            {
+                resamplePhase[static_cast<size_t> (channel)] -= 1.0;
+                resampledOutput[static_cast<size_t> (channel)] = neural.processSample (channel, samples[i]);
+            }
+            processed = resampledOutput[static_cast<size_t> (channel)];
             const float wet = processVoicePost (channel, processed);
             const float mixNow = parameters.getRawParameterValue (mixId)->load() * 0.01f;
             samples[i] = processed + mixNow * (wet - processed);

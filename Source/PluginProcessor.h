@@ -45,6 +45,9 @@ private:
     };
     std::array<VoicePostState, maximumChannels> postStates {};
     double currentSampleRate = 48000.0;
+    double hostToModelRatio = 1.0;
+    std::array<double, maximumChannels> resamplePhase {};
+    std::array<float, maximumChannels> resampledOutput {};
     float processVoicePost (int channel, float sample) noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ClearRoomAudioProcessor)

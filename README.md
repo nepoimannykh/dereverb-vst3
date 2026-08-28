@@ -29,9 +29,9 @@ JenyaDereverb has one control:
 The output includes a voice-focused post-chain: 70 Hz rumble filtering, gentle speech
 compression, and a soft safety limiter.
 
-The neural model operates at 48 kHz, the standard rate for DaVinci Resolve and video
-post-production. At other sample rates the plug-in safely passes audio through. Reported
-latency is 960 samples (20 ms at 48 kHz).
+The neural model operates internally at 48 kHz. A lightweight streaming rate adapter also
+supports common 44.1 and 96 kHz host projects. Reported latency is 960 samples (20 ms at
+48 kHz), scaled to the active host rate.
 
 ## Build from source
 
@@ -55,7 +55,7 @@ cmake --build build-release --config Release -j 4 --target ClearRoomTests
 
 ## Compatibility
 
-- VST3 effect, version 0.3.2
+- VST3 effect, version 0.4.0
 - macOS universal binary (`arm64` and `x86_64`)
 - Mono, stereo, and matching multichannel layouts through 16 channels
 - Tested for construction and 5.1 layout support expected by Fairlight
