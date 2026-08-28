@@ -109,7 +109,7 @@ float NeuralEnhancer::processSample (int channelIndex, float input)
     const float enhanced = channel.outputRing[static_cast<size_t> (channel.position)];
     channel.outputRing[static_cast<size_t> (channel.position)] = 0.0f;
     channel.inputRing[static_cast<size_t> (channel.position)] = input;
-    channel.position = (channel.position + 1) % fftSize;
+    channel.position = (channel.position + 1) % ringSize;
     if (++channel.hopCounter == hopSize)
     {
         channel.hopCounter = 0;
@@ -122,7 +122,7 @@ void NeuralEnhancer::processFrame (Channel& channel)
 {
     for (int i = 0; i < fftSize; ++i)
     {
-        channel.fftReal[static_cast<size_t> (i)] = channel.inputRing[static_cast<size_t> ((channel.position + i) % fftSize)]
+        channel.fftReal[static_cast<size_t> (i)] = channel.inputRing[static_cast<size_t> ((channel.position + i) % ringSize)]
                                                     * window[static_cast<size_t> (i)];
         channel.fftImag[static_cast<size_t> (i)] = 0.0f;
     }
@@ -174,7 +174,7 @@ void NeuralEnhancer::applyCompletedFrames()
                           channel.fftReal.data(), channel.fftImag.data());
         const float scale = 1.0f / static_cast<float> (fftSize);
         for (int i = 0; i < fftSize; ++i)
-            channel.outputRing[static_cast<size_t> ((result.writePosition + i) % fftSize)] +=
+            channel.outputRing[static_cast<size_t> ((result.writePosition + fftSize + i) % ringSize)] +=
                 channel.fftReal[static_cast<size_t> (i)] * window[static_cast<size_t> (i)] * scale;
     }
 }

@@ -12,20 +12,23 @@ public:
     void reset();
     void setStrength (float value) noexcept { strength = juce::jlimit (0.0f, 1.0f, value); }
     float processSample (int channel, float input);
-    int getLatencySamples() const noexcept { return fftSize; }
+    int getLatencySamples() const noexcept { return ringSize; }
     float getReductionDb() const noexcept { return reductionDb.load(); }
     bool isReady() const noexcept { return ready; }
 
 private:
     static constexpr int fftSize = 960;
     static constexpr int hopSize = 480;
+    // Extra hop of scheduling headroom prevents a worker result from arriving after
+    // the playback cursor has passed its target frame.
+    static constexpr int ringSize = 1920;
     static constexpr int bins = 481;
     static constexpr int stateSize = 56436;
 
     struct Channel
     {
-        std::array<float, fftSize> inputRing {};
-        std::array<float, fftSize> outputRing {};
+        std::array<float, ringSize> inputRing {};
+        std::array<float, ringSize> outputRing {};
         std::array<float, fftSize> fftReal {};
         std::array<float, fftSize> fftImag {};
         std::array<float, bins * 2> spectrum {};
