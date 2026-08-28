@@ -37,5 +37,15 @@ private:
     static constexpr int maximumChannels = 16;
     NeuralEnhancer neural;
 
+    struct VoicePostState
+    {
+        float hpX = 0.0f, hpY = 0.0f;
+        float envelope = 0.0f;
+        float detector = 0.0f;
+    };
+    std::array<VoicePostState, maximumChannels> postStates {};
+    double currentSampleRate = 48000.0;
+    float processVoicePost (int channel, float sample) noexcept;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ClearRoomAudioProcessor)
 };

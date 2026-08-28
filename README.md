@@ -26,6 +26,9 @@ JenyaDereverb has one control:
 - **Mix** blends latency-aligned original audio with neural processing. It defaults to
   100%, which applies maximum enhancement and hall removal with voice protection off.
 
+The output includes a voice-focused post-chain: 70 Hz rumble filtering, gentle speech
+compression, and a soft safety limiter.
+
 The neural model operates at 48 kHz, the standard rate for DaVinci Resolve and video
 post-production. At other sample rates the plug-in safely passes audio through. Reported
 latency is 960 samples (20 ms at 48 kHz).
@@ -52,7 +55,7 @@ cmake --build build-release --config Release -j 4 --target ClearRoomTests
 
 ## Compatibility
 
-- VST3 effect, version 0.3.1
+- VST3 effect, version 0.3.2
 - macOS universal binary (`arm64` and `x86_64`)
 - Mono, stereo, and matching multichannel layouts through 16 channels
 - Tested for construction and 5.1 layout support expected by Fairlight
