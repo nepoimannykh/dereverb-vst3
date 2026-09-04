@@ -101,5 +101,7 @@ if(CLEARROOM_BUILD_TESTS)
     target_sources(ClearRoomHostCheck PRIVATE Tests/HostCheck.cpp)
     target_link_libraries(ClearRoomHostCheck PRIVATE juce::juce_audio_utils juce::juce_audio_processors)
     target_compile_definitions(ClearRoomHostCheck PRIVATE
-        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_PLUGINHOST_VST3=1)
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_PLUGINHOST_VST3=1 JUCE_PLUGINHOST_AU=1)
+    target_link_libraries(ClearRoomHostCheck PRIVATE
+        "-framework AudioUnit" "-framework AudioToolbox" "-framework CoreAudioKit")
 endif()

@@ -31,6 +31,10 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
     float getReductionDb() const noexcept { return neural.getReductionDb(); }
+    // Human-readable engine state for the editor, so a silently bypassed plug-in is
+    // visibly different from a working one.
+    juce::String getStatusText() const;
+    bool isEngineActive() const noexcept { return neural.getStatus() == NeuralEnhancer::Status::active; }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

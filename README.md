@@ -52,9 +52,20 @@ partial Mix. This is inherent to blending any phase-modifying spectral processor
 audible as mild hollowness in the middle of the knob's range; 0% and 100% are unaffected.
 Prefer full-wet, or automate between 0% and 100%, if you hear it.
 
-The neural model operates at 48 kHz, the standard rate for DaVinci Resolve and video
-post-production. At other sample rates the plug-in safely passes audio through. Reported
-latency is 960 samples (20 ms at 48 kHz).
+### The project must run at 48 kHz
+
+The neural model runs at 48 kHz only. At any other rate the plug-in passes audio through
+untouched — it will load, show its interface and respond to the knob, but do nothing.
+
+The status line at the bottom left of the interface says which state it is in:
+
+- `DPDFNET AI  •  20 ms` (green dot) — the model is running.
+- `BYPASSED  •  NEEDS 48 kHz, HOST IS 44.1 kHz` (red dot) — passthrough; change the
+  project rate.
+- `BYPASSED  •  MODEL FAILED TO LOAD` (red dot) — the embedded model did not initialise.
+
+In DaVinci Resolve, set the rate under **Project Settings > Fairlight > Audio >
+Sample Rate** to 48 kHz. Reported latency is 960 samples (20 ms at 48 kHz).
 
 ## Build from source
 

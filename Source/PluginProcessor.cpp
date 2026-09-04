@@ -79,6 +79,26 @@ void ClearRoomAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         buffer.clear (channel, 0, numSamples);
 }
 
+juce::String ClearRoomAudioProcessor::getStatusText() const
+{
+    switch (neural.getStatus())
+    {
+        case NeuralEnhancer::Status::active:
+            return "DPDFNET AI  " + juce::String (juce::CharPointer_UTF8 ("\xe2\x80\xa2")) + "  20 ms";
+        case NeuralEnhancer::Status::unsupportedSampleRate:
+        {
+            const auto rate = neural.getPreparedSampleRate();
+            if (rate <= 0.0)
+                return "INACTIVE  " + juce::String (juce::CharPointer_UTF8 ("\xe2\x80\xa2")) + "  NOT PREPARED";
+            return "BYPASSED  " + juce::String (juce::CharPointer_UTF8 ("\xe2\x80\xa2")) + "  NEEDS 48 kHz, HOST IS "
+                 + juce::String (rate / 1000.0, 1) + " kHz";
+        }
+        case NeuralEnhancer::Status::modelLoadFailed:
+        default:
+            return "BYPASSED  " + juce::String (juce::CharPointer_UTF8 ("\xe2\x80\xa2")) + "  MODEL FAILED TO LOAD";
+    }
+}
+
 void ClearRoomAudioProcessor::getStateInformation (juce::MemoryBlock& data)
 {
     if (auto xml = parameters.copyState().createXml())

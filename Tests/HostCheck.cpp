@@ -17,7 +17,16 @@ int main (int argc, char** argv)
               << "exists: " << (bundle.exists() ? "yes" : "NO") << "\n\n";
     if (! bundle.exists()) return 1;
 
-    juce::VST3PluginFormat format;
+    // Pick the format from the bundle extension so the same harness covers both the
+    // VST3 and the Audio Unit that hosts actually load.
+    std::unique_ptr<juce::AudioPluginFormat> formatOwner;
+    if (bundle.hasFileExtension ("component"))
+        formatOwner = std::make_unique<juce::AudioUnitPluginFormat>();
+    else
+        formatOwner = std::make_unique<juce::VST3PluginFormat>();
+    auto& format = *formatOwner;
+    std::cout << "format: " << format.getName() << "\n\n";
+
     juce::OwnedArray<juce::PluginDescription> found;
     format.findAllTypesForFile (found, bundle.getFullPathName());
     std::cout << "scan: found " << found.size() << " plug-in(s)\n";
@@ -42,6 +51,31 @@ int main (int argc, char** argv)
         return 1;
     }
     std::cout << "\ninstantiate: OK\n";
+
+    // The model is 48 kHz only and falls back to passthrough elsewhere -- silently, from
+    // the host's point of view. Reported latency is the tell: 960 when the engine runs,
+    // 0 when it has bypassed itself.
+    std::cout << "\nengine state by sample rate (latency 960 = model running, 0 = passthrough):\n";
+    for (double rate : { 44100.0, 48000.0, 88200.0, 96000.0 })
+    {
+        instance->releaseResources();
+        instance->prepareToPlay (rate, 512);
+        juce::AudioBuffer<float> probe (2, 512);
+        juce::MidiBuffer probeMidi;
+        probe.clear();
+        for (int i = 0; i < 512; ++i)
+        {
+            const auto value = 0.25f * std::sin (juce::MathConstants<float>::twoPi * 220.0f
+                                * static_cast<float> (i) / static_cast<float> (rate));
+            probe.setSample (0, i, value);
+            probe.setSample (1, i, value);
+        }
+        instance->processBlock (probe, probeMidi);
+        const int reported = instance->getLatencySamples();
+        std::cout << "  " << juce::String (rate / 1000.0, 1) << " kHz: latency " << reported
+                  << (reported > 0 ? "   ENGINE ACTIVE" : "   PASSTHROUGH (model not running)") << "\n";
+    }
+    instance->releaseResources();
 
     // Resolve probes several layouts; mono, stereo and 5.1 must all survive prepare/process.
     const juce::AudioChannelSet layouts[] { juce::AudioChannelSet::mono(),

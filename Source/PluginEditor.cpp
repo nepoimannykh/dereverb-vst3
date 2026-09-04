@@ -89,10 +89,15 @@ void ClearRoomAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xffdce9e6));
     g.drawText (juce::String (displayedReduction, 1) + " dB", 350, 321, 98, 18,
                 juce::Justification::centredRight);
-    g.setColour (juce::Colour (0xff58e1bd));
-    g.fillEllipse (532.0f, 310.0f, 7.0f, 7.0f);
-    g.setColour (juce::Colour (0xff8ca3ad));
-    g.drawText ("DPDFNET AI  •  20 ms", 548, 302, 150, 24, juce::Justification::centredLeft);
+    // Engine status gets its own full-width row: the bypass messages are long, and a
+    // silently inactive plug-in must not look identical to a working one.
+    const bool engineActive = audioProcessor.isEngineActive();
+    g.setColour (engineActive ? juce::Colour (0xff58e1bd) : juce::Colour (0xffff6b5c));
+    g.fillEllipse (28.0f, 341.0f, 7.0f, 7.0f);
+    g.setColour (engineActive ? juce::Colour (0xff8ca3ad) : juce::Colour (0xffffb0a6));
+    g.setFont (juce::FontOptions (11.0f, juce::Font::bold));
+    g.drawText (audioProcessor.getStatusText(), 44, 334, getWidth() - 68, 20,
+                juce::Justification::centredLeft);
 }
 
 void ClearRoomAudioProcessorEditor::resized()
@@ -105,5 +110,5 @@ void ClearRoomAudioProcessorEditor::resized()
 void ClearRoomAudioProcessorEditor::timerCallback()
 {
     displayedReduction += 0.18f * (audioProcessor.getReductionDb() - displayedReduction);
-    repaint (juce::Rectangle<int> (20, 298, getWidth() - 40, 48));
+    repaint (juce::Rectangle<int> (20, 298, getWidth() - 40, 62));
 }

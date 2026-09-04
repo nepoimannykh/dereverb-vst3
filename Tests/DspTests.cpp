@@ -277,6 +277,32 @@ int main()
     std::cout << "dry/wet blend sanity: " << (phasePass ? "PASS" : "FAIL") << '\n';
     failures += phasePass ? 0 : 1;
 
+    // The model is 48 kHz only and falls back to passthrough elsewhere. That fallback used
+    // to be invisible; the processor must now say so, or a bypassed plug-in in a 44.1 kHz
+    // session looks identical to a working one.
+    bool statusPass = true;
+    {
+        ClearRoomAudioProcessor rateProcessor;
+        rateProcessor.prepareToPlay (48000.0, 512);
+        const bool activeAt48 = rateProcessor.isEngineActive()
+                             && rateProcessor.getLatencySamples() == 960;
+        const auto textAt48 = rateProcessor.getStatusText();
+
+        rateProcessor.prepareToPlay (44100.0, 512);
+        const bool bypassedAt44 = ! rateProcessor.isEngineActive()
+                               && rateProcessor.getLatencySamples() == 0;
+        const auto textAt44 = rateProcessor.getStatusText();
+
+        statusPass = activeAt48 && bypassedAt44
+                  && textAt48.contains ("DPDFNET")
+                  && textAt44.contains ("48 kHz") && textAt44.contains ("44.1");
+        std::cout << "engine status reporting:\n"
+                  << "  48.0 kHz -> \"" << textAt48 << "\"\n"
+                  << "  44.1 kHz -> \"" << textAt44 << "\"\n"
+                  << "  " << (statusPass ? "PASS" : "FAIL") << '\n';
+    }
+    failures += statusPass ? 0 : 1;
+
     // Benchmark on real signal: an all-zero buffer exercises none of the model path and
     // reports a real-time factor that says nothing about the plug-in's actual cost.
     ClearRoomAudioProcessor speedProcessor;

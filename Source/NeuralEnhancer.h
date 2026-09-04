@@ -8,8 +8,14 @@ class NeuralEnhancer
 public:
     NeuralEnhancer();
     ~NeuralEnhancer();
+    // Why the model is or is not running. Both failure modes used to be silent: the
+    // plug-in simply passed audio through and looked identical to a working one.
+    enum class Status { active, unsupportedSampleRate, modelLoadFailed };
+
     bool prepare (double sampleRate, int channels);
     void reset();
+    Status getStatus() const noexcept { return status; }
+    double getPreparedSampleRate() const noexcept { return preparedSampleRate; }
     // mix is applied per sample so the host can ramp it without zipper noise. The dry
     // signal used in the blend is the latency-matched ring-buffer tap, not the live
     // input, so dry and wet stay time-aligned at every mix setting.
@@ -49,5 +55,7 @@ private:
     void* forwardSetup = nullptr;
     void* inverseSetup = nullptr;
     std::atomic<float> reductionDb { 0.0f };
+    Status status = Status::modelLoadFailed;
+    double preparedSampleRate = 0.0;
     bool ready = false;
 };

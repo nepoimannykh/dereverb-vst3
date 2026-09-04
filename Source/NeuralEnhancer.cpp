@@ -18,8 +18,13 @@ NeuralEnhancer::~NeuralEnhancer()
 bool NeuralEnhancer::prepare (double sampleRate, int channels)
 {
     ready = false;
+    preparedSampleRate = sampleRate;
     if (std::abs (sampleRate - 48000.0) > 1.0)
+    {
+        status = Status::unsupportedSampleRate;
         return false;
+    }
+    status = Status::modelLoadFailed;
 
     if (forwardSetup == nullptr)
         forwardSetup = vDSP_DFT_zop_CreateSetup (nullptr, fftSize, vDSP_DFT_FORWARD);
@@ -42,6 +47,7 @@ bool NeuralEnhancer::prepare (double sampleRate, int channels)
         channelStates.resize (static_cast<size_t> (channels));
         reset();
         ready = true;
+        status = Status::active;
     }
     catch (const Ort::Exception&)
     {
