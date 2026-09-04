@@ -41,7 +41,7 @@ private:
     void processFrame (Channel&);
     void initialiseState (std::vector<float>&);
 
-    Ort::Env environment { ORT_LOGGING_LEVEL_WARNING, "JenyaDereverb" };
+    Ort::Env environment { ORT_LOGGING_LEVEL_WARNING, "JenyaDereverb2" };
     Ort::SessionOptions sessionOptions;
     std::unique_ptr<Ort::Session> session;
     std::vector<Channel> channelStates;

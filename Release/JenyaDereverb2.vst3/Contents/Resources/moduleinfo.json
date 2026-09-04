@@ -1,0 +1,60 @@
+{
+  "Name": "JenyaDereverb2",
+  "Version": "0.5.0",
+  "Factory Info": {
+    "Vendor": "Jenya Audio",
+    "URL": "",
+    "E-Mail": "",
+    "Flags": {
+      "Unicode": true,
+      "Classes Discardable": false,
+      "Component Non Discardable": false,
+    },
+  },
+  "Classes": [
+    {
+      "CID": "ABCDEF019182FAEB4A6E79614A447632",
+      "Category": "Audio Module Class",
+      "Name": "JenyaDereverb2",
+      "Vendor": "Jenya Audio",
+      "Version": "0.5.0",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+        "Reverb",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF011234ABCD4A6E79614A447632",
+      "Category": "Component Controller Class",
+      "Name": "JenyaDereverb2",
+      "Vendor": "Jenya Audio",
+      "Version": "0.5.0",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+        "Reverb",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF01C0DEF00D4A6E79614A447632",
+      "Category": "Plugin Compatibility Class",
+      "Name": "JenyaDereverb2",
+      "Vendor": "Jenya Audio",
+      "Version": "0.5.0",
+      "SDKVersion": "VST 3.7.12",
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+  ],
+}

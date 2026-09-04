@@ -1,6 +1,6 @@
 # Third-party notices
 
-JenyaDereverb's C++ online WPE implementation is based on the algorithm and recursive update
+JenyaDereverb2's C++ online WPE implementation is based on the algorithm and recursive update
 formulation published by the NARA-WPE project. No Python or TensorFlow runtime is bundled.
 
 The active neural path embeds the official DPDFNet 48 kHz high-resolution ONNX model from

@@ -1,27 +1,45 @@
-# JenyaDereverb
+# JenyaDereverb2
 
-JenyaDereverb is a compact, real-time neural VST3 for making reverberant spoken voice
+JenyaDereverb2 is a compact, real-time neural VST3 for making reverberant spoken voice
 drier and more suitable for podcasts, dialogue, and voice-over work. It embeds the
 DPDFNet speech-enhancement model and runs locally—no cloud service or account is needed.
 
-![JenyaDereverb running in DaVinci Resolve](docs/images/jenya-dereverb-ui.png)
+![JenyaDereverb2 running in DaVinci Resolve](docs/images/jenya-dereverb-ui.png)
 
 ## Download and install
 
-The ready-to-use universal macOS plug-in is included at
-[`Release/JenyaDereverb.vst3`](Release/JenyaDereverb.vst3). It supports Apple Silicon
-and Intel Macs.
+Ready-to-use universal macOS plug-ins are included in [`Release/`](Release), in both VST3
+and Audio Unit form. Both support Apple Silicon and Intel Macs.
 
 1. Download or clone this repository.
-2. Copy `Release/JenyaDereverb.vst3` to `~/Library/Audio/Plug-Ins/VST3/`.
+2. Copy `Release/JenyaDereverb2.vst3` to `~/Library/Audio/Plug-Ins/VST3/`, and/or
+   `Release/JenyaDereverb2.component` to `~/Library/Audio/Plug-Ins/Components/`.
 3. Restart the DAW. In DaVinci Resolve, rescan audio plug-ins if it does not appear.
+
+### Which format does DaVinci Resolve need?
+
+This matters, because the two Resolve distributions differ:
+
+- **Resolve from the Mac App Store** runs in a macOS sandbox and **does not load VST3 at
+  all** — it scans Audio Units only. Install the `.component`. A VST3 will simply never
+  appear, with no error shown.
+- **Resolve downloaded from blackmagicdesign.com** is not sandboxed and loads both. Either
+  format works.
+
+To tell which one you have, run:
+
+```sh
+ls "/Applications/DaVinci Resolve.app/Contents/_MASReceipt" 2>/dev/null \
+  && echo "App Store build - use the Audio Unit" \
+  || echo "Direct download - either format works"
+```
 
 The release is ad-hoc signed. macOS may require a locally trusted signature or removal
 of downloaded-file quarantine metadata before third-party hosts can scan it.
 
 ## Use
 
-JenyaDereverb has one control:
+JenyaDereverb2 has one control:
 
 - **Mix** blends latency-aligned original audio with neural processing. It defaults to
   100%. It is ramped over 20 ms, so it can be automated or dragged without clicks, and at
@@ -51,7 +69,9 @@ cmake -S . -B build-release \
 cmake --build build-release --config Release -j 4 --target ClearRoom_VST3
 ```
 
-The output is `build-release/ClearRoom_artefacts/Release/VST3/JenyaDereverb.vst3`.
+The outputs are `build-release/ClearRoom_artefacts/Release/VST3/JenyaDereverb2.vst3` and
+`build-release/ClearRoom_artefacts/Release/AU/JenyaDereverb2.component`. Build the Audio
+Unit with the `ClearRoom_AU` target, or both with `ClearRoom_All`.
 
 ```sh
 cmake --build build-release --config Release -j 4 --target ClearRoomTests
@@ -60,7 +80,7 @@ cmake --build build-release --config Release -j 4 --target ClearRoomTests
 
 ## Compatibility
 
-- VST3 effect, version 0.5.0
+- VST3 and Audio Unit effect, version 0.5.0
 - macOS universal binary (`arm64` and `x86_64`)
 - Mono, stereo, and matching multichannel layouts through 16 channels
 - Tested for construction and 5.1 layout support expected by Fairlight

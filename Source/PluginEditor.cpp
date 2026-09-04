@@ -66,7 +66,7 @@ void ClearRoomAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour (0xfff3faf8));
     g.setFont (juce::FontOptions (28.0f, juce::Font::bold));
-    g.drawText ("JENYA / DEREVERB", 28, 20, 360, 36, juce::Justification::centredLeft);
+    g.drawText ("JENYA / DEREVERB 2", 28, 20, 380, 36, juce::Justification::centredLeft);
     g.setColour (juce::Colour (0xff8ca3ad));
     g.setFont (juce::FontOptions (12.0f));
     g.drawText ("REAL-TIME NEURAL VOICE RESTORATION", 30, 54, 330, 20, juce::Justification::centredLeft);
