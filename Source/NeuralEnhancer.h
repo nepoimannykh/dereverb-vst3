@@ -10,8 +10,10 @@ public:
     ~NeuralEnhancer();
     bool prepare (double sampleRate, int channels);
     void reset();
-    void setStrength (float value) noexcept { strength = juce::jlimit (0.0f, 1.0f, value); }
-    float processSample (int channel, float input);
+    // mix is applied per sample so the host can ramp it without zipper noise. The dry
+    // signal used in the blend is the latency-matched ring-buffer tap, not the live
+    // input, so dry and wet stay time-aligned at every mix setting.
+    float processSample (int channel, float input, float mix);
     int getLatencySamples() const noexcept { return fftSize; }
     float getReductionDb() const noexcept { return reductionDb.load(); }
     bool isReady() const noexcept { return ready; }
@@ -46,7 +48,6 @@ private:
     std::array<float, fftSize> window {};
     void* forwardSetup = nullptr;
     void* inverseSetup = nullptr;
-    float strength = 0.6f;
     std::atomic<float> reductionDb { 0.0f };
     bool ready = false;
 };

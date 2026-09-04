@@ -1,6 +1,6 @@
 {
   "Name": "JenyaDereverb",
-  "Version": "0.4.1",
+  "Version": "0.5.0",
   "Factory Info": {
     "Vendor": "Jenya Audio",
     "URL": "",
@@ -17,7 +17,7 @@
       "Category": "Audio Module Class",
       "Name": "JenyaDereverb",
       "Vendor": "Jenya Audio",
-      "Version": "0.4.1",
+      "Version": "0.5.0",
       "SDKVersion": "VST 3.7.12",
       "Sub Categories": [
         "Fx",
@@ -33,7 +33,7 @@
       "Category": "Component Controller Class",
       "Name": "JenyaDereverb",
       "Vendor": "Jenya Audio",
-      "Version": "0.4.1",
+      "Version": "0.5.0",
       "SDKVersion": "VST 3.7.12",
       "Sub Categories": [
         "Fx",
@@ -49,7 +49,7 @@
       "Category": "Plugin Compatibility Class",
       "Name": "JenyaDereverb",
       "Vendor": "Jenya Audio",
-      "Version": "0.4.1",
+      "Version": "0.5.0",
       "SDKVersion": "VST 3.7.12",
       "Class Flags": 0,
       "Cardinality": 2147483647,

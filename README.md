@@ -24,7 +24,15 @@ of downloaded-file quarantine metadata before third-party hosts can scan it.
 JenyaDereverb has one control:
 
 - **Mix** blends latency-aligned original audio with neural processing. It defaults to
-  100%, which applies maximum enhancement and hall removal with voice protection off.
+  100%. It is ramped over 20 ms, so it can be automated or dragged without clicks, and at
+  0% the output is bit-identical to the (delay-compensated) input.
+
+Note on intermediate Mix settings: the model reconstructs spectral phase rather than
+applying a magnitude mask, so dry and wet are not phase-coherent. Around half of all
+spectral bins sit more than 90 degrees apart, and individual bins can therefore cancel at
+partial Mix. This is inherent to blending any phase-modifying spectral processor and is
+audible as mild hollowness in the middle of the knob's range; 0% and 100% are unaffected.
+Prefer full-wet, or automate between 0% and 100%, if you hear it.
 
 The neural model operates at 48 kHz, the standard rate for DaVinci Resolve and video
 post-production. At other sample rates the plug-in safely passes audio through. Reported
@@ -52,7 +60,7 @@ cmake --build build-release --config Release -j 4 --target ClearRoomTests
 
 ## Compatibility
 
-- VST3 effect, version 0.4.1
+- VST3 effect, version 0.5.0
 - macOS universal binary (`arm64` and `x86_64`)
 - Mono, stereo, and matching multichannel layouts through 16 channels
 - Tested for construction and 5.1 layout support expected by Fairlight
@@ -60,7 +68,7 @@ cmake --build build-release --config Release -j 4 --target ClearRoomTests
 ## Open-source components
 
 The neural path uses the Apache-2.0-licensed DPDFNet model and MIT-licensed ONNX Runtime.
-Earlier WPE research code is retained. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+Earlier WPE research code is retained in `Source/OnlineWpe.*` but is no longer compiled. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 and [`docs/OPEN_SOURCE_REVIEW.md`](docs/OPEN_SOURCE_REVIEW.md).
 
 ## Important limitation

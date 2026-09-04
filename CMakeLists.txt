@@ -6,7 +6,7 @@ if(APPLE AND NOT DEFINED CMAKE_OSX_ARCHITECTURES)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures")
 endif()
 
-project(ClearRoom VERSION 0.4.1 LANGUAGES C CXX)
+project(ClearRoom VERSION 0.5.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -35,8 +35,6 @@ target_sources(ClearRoom PRIVATE
     Source/PluginProcessor.h
     Source/PluginEditor.cpp
     Source/PluginEditor.h
-    Source/OnlineWpe.cpp
-    Source/OnlineWpe.h
     Source/NeuralEnhancer.cpp
     Source/NeuralEnhancer.h)
 

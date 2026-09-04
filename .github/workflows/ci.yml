@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+
+      - name: Build plug-in and tests
+        run: cmake --build build --config Release -j 3 --target ClearRoom_VST3 ClearRoomTests
+
+      - name: Run DSP regression tests
+        run: ./build/ClearRoomTests_artefacts/Release/ClearRoomTests

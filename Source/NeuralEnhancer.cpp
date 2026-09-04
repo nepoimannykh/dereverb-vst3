@@ -84,9 +84,14 @@ void NeuralEnhancer::reset()
     reductionDb.store (0.0f);
 }
 
-float NeuralEnhancer::processSample (int channelIndex, float input)
+float NeuralEnhancer::processSample (int channelIndex, float input, float mix)
 {
-    if (! ready) return input;
+    if (! ready || channelIndex < 0 || channelIndex >= static_cast<int> (channelStates.size()))
+        return input;
+    // A single non-finite sample would otherwise persist in the overlap-add rings and in
+    // the recurrent model state, silencing the channel until the next prepareToPlay.
+    if (! std::isfinite (input))
+        input = 0.0f;
     auto& channel = channelStates[static_cast<size_t> (channelIndex)];
     const float delayed = channel.inputRing[static_cast<size_t> (channel.position)];
     const float enhanced = channel.outputRing[static_cast<size_t> (channel.position)];
@@ -98,7 +103,7 @@ float NeuralEnhancer::processSample (int channelIndex, float input)
         channel.hopCounter = 0;
         processFrame (channel);
     }
-    return delayed + strength * (enhanced - delayed);
+    return delayed + mix * (enhanced - delayed);
 }
 
 void NeuralEnhancer::processFrame (Channel& channel)
@@ -133,6 +138,15 @@ void NeuralEnhancer::processFrame (Channel& channel)
     std::array<Ort::Value, 2> outputs { std::move (specOut), std::move (stateOut) };
     try { session->Run (Ort::RunOptions { nullptr }, inputNames, inputs.data(), 2, outputNames, outputs.data(), 2); }
     catch (const Ort::Exception&) { return; }
+    // The model is recurrent, so a diverged frame would feed itself forever. Spot-check
+    // the returned spectrum and reinitialise the channel rather than latch a dead output.
+    if (! std::isfinite (channel.enhanced[0]) || ! std::isfinite (channel.nextState[0]))
+    {
+        initialiseState (channel.state);
+        channel.nextState.assign (static_cast<size_t> (stateSize), 0.0f);
+        channel.enhanced.fill (0.0f);
+        return;
+    }
     channel.state.swap (channel.nextState);
 
     double after = 1.0e-12;
@@ -142,6 +156,7 @@ void NeuralEnhancer::processFrame (Channel& channel)
         channel.fftImag[static_cast<size_t> (bin)] = channel.enhanced[static_cast<size_t> (bin * 2 + 1)];
         after += std::norm (std::complex<float> { channel.fftReal[static_cast<size_t> (bin)], channel.fftImag[static_cast<size_t> (bin)] });
     }
+
     for (int bin = bins; bin < fftSize; ++bin)
     {
         const int mirror = fftSize - bin;

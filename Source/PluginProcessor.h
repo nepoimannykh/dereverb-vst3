@@ -10,6 +10,7 @@ public:
 
     void prepareToPlay (double sampleRate, int maximumBlockSize) override;
     void releaseResources() override {}
+    void reset() override;
     bool isBusesLayoutSupported (const BusesLayout&) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
@@ -36,6 +37,7 @@ private:
 
     static constexpr int maximumChannels = 16;
     NeuralEnhancer neural;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> mixSmoother;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ClearRoomAudioProcessor)
 };
