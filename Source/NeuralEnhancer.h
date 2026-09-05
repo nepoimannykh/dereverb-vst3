@@ -16,6 +16,10 @@ public:
     void reset();
     Status getStatus() const noexcept { return status; }
     double getPreparedSampleRate() const noexcept { return preparedSampleRate; }
+    // Empty unless the ONNX Runtime threw while creating the session. Previously the
+    // exception text was caught and discarded, leaving no way to tell why the model
+    // failed inside a sandboxed host such as the App Store build of DaVinci Resolve.
+    juce::String getLastError() const { return lastError; }
     // mix is applied per sample so the host can ramp it without zipper noise. The dry
     // signal used in the blend is the latency-matched ring-buffer tap, not the live
     // input, so dry and wet stay time-aligned at every mix setting.
@@ -45,6 +49,7 @@ private:
     };
 
     void processFrame (Channel&);
+    void writeDiagnostics() const;
     void initialiseState (std::vector<float>&);
 
     Ort::Env environment { ORT_LOGGING_LEVEL_WARNING, "JenyaDereverb2" };
@@ -56,6 +61,7 @@ private:
     void* inverseSetup = nullptr;
     std::atomic<float> reductionDb { 0.0f };
     Status status = Status::modelLoadFailed;
+    juce::String lastError;
     double preparedSampleRate = 0.0;
     bool ready = false;
 };

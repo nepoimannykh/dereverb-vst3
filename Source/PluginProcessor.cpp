@@ -95,7 +95,13 @@ juce::String ClearRoomAudioProcessor::getStatusText() const
         }
         case NeuralEnhancer::Status::modelLoadFailed:
         default:
-            return "BYPASSED  " + juce::String (juce::CharPointer_UTF8 ("\xe2\x80\xa2")) + "  MODEL FAILED TO LOAD";
+        {
+            auto text = "BYPASSED  " + juce::String (juce::CharPointer_UTF8 ("\xe2\x80\xa2")) + "  MODEL FAILED TO LOAD";
+            const auto detail = neural.getLastError();
+            if (detail.isNotEmpty())
+                text << ": " << detail.substring (0, 90);
+            return text;
+        }
     }
 }
 

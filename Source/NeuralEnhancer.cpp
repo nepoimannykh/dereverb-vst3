@@ -19,9 +19,11 @@ bool NeuralEnhancer::prepare (double sampleRate, int channels)
 {
     ready = false;
     preparedSampleRate = sampleRate;
+    lastError.clear();
     if (std::abs (sampleRate - 48000.0) > 1.0)
     {
         status = Status::unsupportedSampleRate;
+        writeDiagnostics();
         return false;
     }
     status = Status::modelLoadFailed;
@@ -49,10 +51,17 @@ bool NeuralEnhancer::prepare (double sampleRate, int channels)
         ready = true;
         status = Status::active;
     }
-    catch (const Ort::Exception&)
+    catch (const Ort::Exception& exception)
     {
+        lastError = juce::String (exception.what());
         session.reset();
     }
+    catch (const std::exception& exception)
+    {
+        lastError = juce::String (exception.what());
+        session.reset();
+    }
+    writeDiagnostics();
     return ready;
 }
 
@@ -73,6 +82,31 @@ void NeuralEnhancer::initialiseState (std::vector<float>& state)
     };
     fill ("erb_norm_init", 0);
     fill ("spec_norm_init", 481);
+}
+
+// Sandboxed hosts give a plug-in nowhere obvious to report from, and the editor may never
+// be opened. Drop a line into the host's own writable application-data area on every
+// prepare so the engine state can be inspected after the fact.
+void NeuralEnhancer::writeDiagnostics() const
+{
+    const auto directory = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                               .getChildFile ("JenyaDereverb2");
+    if (! directory.exists() && ! directory.createDirectory())
+        return;
+    const auto file = directory.getChildFile ("diagnostics.log");
+    if (file.getSize() > 256 * 1024)
+        file.deleteFile();
+    juce::String line;
+    line << juce::Time::getCurrentTime().toISO8601 (true)
+         << "  rate=" << juce::String (preparedSampleRate, 1)
+         << "  channels=" << static_cast<int> (channelStates.size())
+         << "  status=" << (status == Status::active ? "active"
+                          : status == Status::unsupportedSampleRate ? "unsupported-sample-rate"
+                          : "model-load-failed")
+         << "  modelBytes=" << static_cast<int> (BinaryData::dpdfnet2_48khz_hr_onnxSize);
+    if (lastError.isNotEmpty())
+        line << "  error=" << lastError.replaceCharacters ("\r\n", "  ");
+    file.appendText (line + "\n");
 }
 
 void NeuralEnhancer::reset()
