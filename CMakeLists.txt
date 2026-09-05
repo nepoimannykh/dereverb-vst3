@@ -98,6 +98,14 @@ if(CLEARROOM_BUILD_TESTS)
 
     # Loads the finished .vst3 through JUCE's VST3 host, which is the same scan/instantiate
     # path a DAW uses. Catches bundle and factory faults that the DSP tests cannot see.
+    # Renders the editor to a PNG for visual review without a host.
+    juce_add_console_app(ClearRoomRenderUi PRODUCT_NAME "ClearRoom Render UI")
+    juce_generate_juce_header(ClearRoomRenderUi)
+    target_sources(ClearRoomRenderUi PRIVATE Tests/RenderUi.cpp)
+    target_link_libraries(ClearRoomRenderUi PRIVATE ClearRoom JenyaDereverb2Model juce::juce_audio_utils)
+    target_compile_definitions(ClearRoomRenderUi PRIVATE
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1)
+
     juce_add_console_app(ClearRoomHostCheck PRODUCT_NAME "ClearRoom Host Check")
     juce_generate_juce_header(ClearRoomHostCheck)
     target_sources(ClearRoomHostCheck PRIVATE Tests/HostCheck.cpp)

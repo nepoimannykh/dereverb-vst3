@@ -34,6 +34,10 @@ void ClearRoomAudioProcessor::prepareToPlay (double sampleRate, int)
     // audibly whenever the knob is dragged or the parameter is automated.
     mixSmoother.reset (sampleRate, 0.02);
     mixSmoother.setCurrentAndTargetValue (parameters.getRawParameterValue (mixId)->load() * 0.01f);
+    for (auto& value : envelopeDry) value.store (0.0f, std::memory_order_relaxed);
+    for (auto& value : envelopeWet) value.store (0.0f, std::memory_order_relaxed);
+    envelopeDryEnergy = envelopeWetEnergy = 0.0;
+    envelopeCount = 0;
     diagnostics::trace ("prepareToPlay rate=" + juce::String (sampleRate, 1)
                         + " channels=" + juce::String (getTotalNumInputChannels())
                         + " status=" + getStatusText());
@@ -76,12 +80,48 @@ void ClearRoomAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         for (int channel = 0; channel < channels; ++channel)
         {
             auto* sample = writePointers[static_cast<size_t> (channel)] + i;
-            *sample = neural.processSample (channel, *sample, mix);
+            const float dry = *sample;
+            const float wet = neural.processSample (channel, dry, mix);
+            *sample = wet;
+            if (channel == 0)
+            {
+                envelopeDryEnergy += static_cast<double> (dry) * dry;
+                envelopeWetEnergy += static_cast<double> (wet) * wet;
+                if (++envelopeCount >= envelopeWindow)
+                {
+                    const auto scale = 1.0 / static_cast<double> (envelopeWindow);
+                    const int slot = envelopeIndex.load (std::memory_order_relaxed);
+                    envelopeDry[static_cast<size_t> (slot)].store (
+                        static_cast<float> (std::sqrt (envelopeDryEnergy * scale)), std::memory_order_relaxed);
+                    envelopeWet[static_cast<size_t> (slot)].store (
+                        static_cast<float> (std::sqrt (envelopeWetEnergy * scale)), std::memory_order_relaxed);
+                    envelopeIndex.store ((slot + 1) % envelopePoints, std::memory_order_release);
+                    envelopeDryEnergy = envelopeWetEnergy = 0.0;
+                    envelopeCount = 0;
+                }
+            }
         }
     }
 
     for (int channel = channels; channel < buffer.getNumChannels(); ++channel)
         buffer.clear (channel, 0, numSamples);
+}
+
+void ClearRoomAudioProcessor::copyEnvelopes (float* dry, float* wet) const
+{
+    // Unroll the ring so index 0 is the oldest point and the display scrolls left. The
+    // output trails the input by the model's latency, so delay the dry series to match;
+    // otherwise the two curves are compared across different moments of the signal.
+    const int newest = envelopeIndex.load (std::memory_order_acquire);
+    const int latencyPoints = juce::roundToInt (static_cast<double> (neural.getLatencySamples())
+                                                / static_cast<double> (envelopeWindow));
+    for (int i = 0; i < envelopePoints; ++i)
+    {
+        const auto wetSlot = static_cast<size_t> ((newest + i) % envelopePoints);
+        const auto drySlot = static_cast<size_t> ((newest + i - latencyPoints + envelopePoints * 2) % envelopePoints);
+        dry[i] = envelopeDry[drySlot].load (std::memory_order_relaxed);
+        wet[i] = envelopeWet[wetSlot].load (std::memory_order_relaxed);
+    }
 }
 
 juce::String ClearRoomAudioProcessor::getStatusText() const
