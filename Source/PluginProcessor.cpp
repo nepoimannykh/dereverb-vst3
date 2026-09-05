@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "Diagnostics.h"
 
 namespace
 {
@@ -11,6 +12,7 @@ ClearRoomAudioProcessor::ClearRoomAudioProcessor()
                                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, "PARAMETERS", createLayout())
 {
+    diagnostics::trace ("processor constructed, version " + juce::String (JucePlugin_VersionString));
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout ClearRoomAudioProcessor::createLayout()
@@ -32,6 +34,9 @@ void ClearRoomAudioProcessor::prepareToPlay (double sampleRate, int)
     // audibly whenever the knob is dragged or the parameter is automated.
     mixSmoother.reset (sampleRate, 0.02);
     mixSmoother.setCurrentAndTargetValue (parameters.getRawParameterValue (mixId)->load() * 0.01f);
+    diagnostics::trace ("prepareToPlay rate=" + juce::String (sampleRate, 1)
+                        + " channels=" + juce::String (getTotalNumInputChannels())
+                        + " status=" + getStatusText());
 }
 
 void ClearRoomAudioProcessor::reset()
@@ -120,7 +125,11 @@ void ClearRoomAudioProcessor::setStateInformation (const void* data, int size)
 
 juce::AudioProcessorEditor* ClearRoomAudioProcessor::createEditor()
 {
-    return new ClearRoomAudioProcessorEditor (*this);
+    diagnostics::trace ("createEditor called");
+    auto* editor = new ClearRoomAudioProcessorEditor (*this);
+    diagnostics::trace ("editor constructed " + juce::String (editor->getWidth())
+                        + "x" + juce::String (editor->getHeight()));
+    return editor;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

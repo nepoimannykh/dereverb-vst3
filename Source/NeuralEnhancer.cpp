@@ -1,6 +1,7 @@
 #include <Accelerate/Accelerate.h>
 #include "NeuralEnhancer.h"
 #include "BinaryData.h"
+#include "Diagnostics.h"
 
 NeuralEnhancer::NeuralEnhancer()
 {
@@ -62,6 +63,9 @@ bool NeuralEnhancer::prepare (double sampleRate, int channels)
         session.reset();
     }
     writeDiagnostics();
+    diagnostics::trace ("model prepare rate=" + juce::String (sampleRate, 1)
+                        + " ready=" + (ready ? "yes" : "no")
+                        + (lastError.isEmpty() ? juce::String() : " error=" + lastError));
     return ready;
 }
 

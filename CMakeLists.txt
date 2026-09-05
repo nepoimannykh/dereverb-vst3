@@ -39,7 +39,9 @@ target_sources(ClearRoom PRIVATE
     Source/PluginEditor.cpp
     Source/PluginEditor.h
     Source/NeuralEnhancer.cpp
-    Source/NeuralEnhancer.h)
+    Source/NeuralEnhancer.h
+    Source/Diagnostics.cpp
+    Source/Diagnostics.h)
 
 juce_add_binary_data(JenyaDereverb2Model SOURCES
     Assets/Models/dpdfnet2_48khz_hr.onnx)
