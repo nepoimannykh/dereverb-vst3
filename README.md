@@ -1,109 +1,79 @@
 # JenyaDereverb2
 
-JenyaDereverb2 is a compact, real-time neural VST3 for making reverberant spoken voice
-drier and more suitable for podcasts, dialogue, and voice-over work. It embeds the
-DPDFNet speech-enhancement model and runs locally—no cloud service or account is needed.
+Real-time neural de-reverb for spoken voice — podcasts, dialogue, voice-over. Runs locally
+with the embedded DPDFNet model; no cloud, no account. macOS VST3 and Audio Unit.
 
-![JenyaDereverb2 running in DaVinci Resolve](docs/images/jenya-dereverb-ui.png)
+![JenyaDereverb2](docs/images/jenya-dereverb-ui.png)
 
-## Download and install
+## Install
 
-Ready-to-use universal macOS plug-ins are included in [`Release/`](Release), in both VST3
-and Audio Unit form. Both support Apple Silicon and Intel Macs.
+Prebuilt universal (Apple Silicon + Intel) bundles are in [`Release/`](Release) and on the
+[releases page](../../releases).
 
-1. Download or clone this repository.
-2. Copy `Release/JenyaDereverb2.vst3` to `~/Library/Audio/Plug-Ins/VST3/`, and/or
-   `Release/JenyaDereverb2.component` to `~/Library/Audio/Plug-Ins/Components/`.
-3. Restart the DAW. In DaVinci Resolve, rescan audio plug-ins if it does not appear.
+- **VST3** → a folder your host scans, commonly `~/Library/Audio/Plug-Ins/VST3/`
+- **Audio Unit** → `~/Library/Audio/Plug-Ins/Components/`
 
-### Which format does DaVinci Resolve need?
+Quit and reopen the host, then rescan. The bundles are ad-hoc signed, so macOS may need
+quarantine metadata cleared after download.
 
-This matters, because the two Resolve distributions differ:
+## Requires a 48 kHz project
 
-- **Resolve from the Mac App Store** runs in a macOS sandbox and **does not load VST3 at
-  all** — it scans Audio Units only. Install the `.component`. A VST3 will simply never
-  appear, with no error shown.
-- **Resolve downloaded from blackmagicdesign.com** is not sandboxed and loads both. Either
-  format works.
+The model runs at 48 kHz only. At any other rate the plug-in loads, shows its interface and
+responds to the knob — but passes audio through untouched. The status line says which:
 
-To tell which one you have, run:
+| Status line | Meaning |
+|---|---|
+| `DPDFNET AI • 20 ms` (green) | Model running |
+| `BYPASSED • NEEDS 48 kHz, HOST IS 44.1 kHz` (red) | Passthrough — change the project rate |
+| `BYPASSED • MODEL FAILED TO LOAD` (red) | Model did not initialise |
 
-```sh
-ls "/Applications/DaVinci Resolve.app/Contents/_MASReceipt" 2>/dev/null \
-  && echo "App Store build - use the Audio Unit" \
-  || echo "Direct download - either format works"
-```
-
-The release is ad-hoc signed. macOS may require a locally trusted signature or removal
-of downloaded-file quarantine metadata before third-party hosts can scan it.
+In DaVinci Resolve: **Project Settings → Fairlight → Audio → Sample Rate**.
 
 ## Use
 
-JenyaDereverb2 has one control:
+**Mix** is the only control, 100% by default. It ramps over 20 ms so it is click-free when
+automated, and at 0% the output is bit-identical to the delay-compensated input. Latency is
+960 samples (20 ms at 48 kHz).
 
-- **Mix** blends latency-aligned original audio with neural processing. It defaults to
-  100%. It is ramped over 20 ms, so it can be automated or dragged without clicks, and at
-  0% the output is bit-identical to the (delay-compensated) input.
+**Partial Mix can cancel.** The model reconstructs spectral phase, so dry and wet are not
+phase-coherent: about half of all bins sit more than 90° apart, and individual bins can null
+at intermediate settings. 0% and 100% are unaffected — prefer full-wet, or automate between
+the two.
 
-Note on intermediate Mix settings: the model reconstructs spectral phase rather than
-applying a magnitude mask, so dry and wet are not phase-coherent. Around half of all
-spectral bins sit more than 90 degrees apart, and individual bins can therefore cancel at
-partial Mix. This is inherent to blending any phase-modifying spectral processor and is
-audible as mild hollowness in the middle of the knob's range; 0% and 100% are unaffected.
-Prefer full-wet, or automate between 0% and 100%, if you hear it.
+## Build
 
-### The project must run at 48 kHz
-
-The neural model runs at 48 kHz only. At any other rate the plug-in passes audio through
-untouched — it will load, show its interface and respond to the knob, but do nothing.
-
-The status line at the bottom left of the interface says which state it is in:
-
-- `DPDFNET AI  •  20 ms` (green dot) — the model is running.
-- `BYPASSED  •  NEEDS 48 kHz, HOST IS 44.1 kHz` (red dot) — passthrough; change the
-  project rate.
-- `BYPASSED  •  MODEL FAILED TO LOAD` (red dot) — the embedded model did not initialise.
-
-In DaVinci Resolve, set the rate under **Project Settings > Fairlight > Audio >
-Sample Rate** to 48 kHz. Reported latency is 960 samples (20 ms at 48 kHz).
-
-## Build from source
-
-Requirements: macOS, Xcode command-line tools, CMake 3.22+, Git, and a C++17 compiler.
-JUCE 8.0.4 is fetched during configuration. The model, ONNX Runtime headers, and stripped
-universal ONNX Runtime library needed by the build are included.
+macOS, Xcode command-line tools, CMake 3.22+, C++17. JUCE 8.0.4 is fetched during
+configuration; the model and ONNX Runtime are included.
 
 ```sh
-cmake -S . -B build-release \
-  -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-cmake --build build-release --config Release -j 4 --target ClearRoom_VST3
+cmake --build build-release --config Release -j 4 --target ClearRoom_All
 ```
 
-The outputs are `build-release/ClearRoom_artefacts/Release/VST3/JenyaDereverb2.vst3` and
-`build-release/ClearRoom_artefacts/Release/AU/JenyaDereverb2.component`. Build the Audio
-Unit with the `ClearRoom_AU` target, or both with `ClearRoom_All`.
+Outputs land in `build-release/ClearRoom_artefacts/Release/{VST3,AU}/`. To run the DSP
+regression suite:
 
 ```sh
 cmake --build build-release --config Release -j 4 --target ClearRoomTests
 ./build-release/ClearRoomTests_artefacts/Release/ClearRoomTests
 ```
 
+`ClearRoomHostCheck <bundle>` loads a built bundle the way a DAW does and reports where it
+fails; `scripts/show-engine-log.sh` prints the plug-in's lifecycle trace from the macOS
+unified log, which works even inside a sandboxed host.
+
 ## Compatibility
 
-- VST3 and Audio Unit effect, version 0.5.0
-- macOS universal binary (`arm64` and `x86_64`)
-- Mono, stereo, and matching multichannel layouts through 16 channels
-- Tested for construction and 5.1 layout support expected by Fairlight
+VST3 and Audio Unit, version 0.5.0. macOS universal (`arm64`, `x86_64`). Mono, stereo and
+matching multichannel layouts through 16 channels, including 5.1 for Fairlight.
 
-## Open-source components
+## Licences
 
-The neural path uses the Apache-2.0-licensed DPDFNet model and MIT-licensed ONNX Runtime.
-Earlier WPE research code is retained in `Source/OnlineWpe.*` but is no longer compiled. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
-and [`docs/OPEN_SOURCE_REVIEW.md`](docs/OPEN_SOURCE_REVIEW.md).
+DPDFNet model (Apache-2.0) and ONNX Runtime (MIT). Earlier WPE research code is retained in
+`Source/OnlineWpe.*` but is not compiled. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and
+[`docs/OPEN_SOURCE_REVIEW.md`](docs/OPEN_SOURCE_REVIEW.md).
 
-## Important limitation
-
-De-reverberation cannot reconstruct information that was never captured. Very distant,
-clipped, or extremely reverberant recordings may still produce artifacts. Always keep
-the original recording.
+De-reverberation cannot restore what was never captured; very distant or clipped recordings
+may still produce artifacts. Keep the original.
