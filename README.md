@@ -27,8 +27,6 @@ responds to the knob — but passes audio through untouched. The status line say
 | `BYPASSED • NEEDS 48 kHz, HOST IS 44.1 kHz` (red) | Passthrough — change the project rate |
 | `BYPASSED • MODEL FAILED TO LOAD` (red) | Model did not initialise |
 
-In DaVinci Resolve: **Project Settings → Fairlight → Audio → Sample Rate**.
-
 ## Use
 
 **Mix** is the only control, 100% by default. It ramps over 20 ms so it is click-free when
