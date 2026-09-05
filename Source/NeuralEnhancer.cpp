@@ -19,15 +19,15 @@ NeuralEnhancer::~NeuralEnhancer()
 bool NeuralEnhancer::prepare (double sampleRate, int channels)
 {
     ready = false;
-    preparedSampleRate = sampleRate;
-    lastError.clear();
+    preparedSampleRate.store (sampleRate, std::memory_order_relaxed);
+    setLastError ({});
     if (std::abs (sampleRate - 48000.0) > 1.0)
     {
-        status = Status::unsupportedSampleRate;
+        setStatus (Status::unsupportedSampleRate);
         writeDiagnostics();
         return false;
     }
-    status = Status::modelLoadFailed;
+    setStatus (Status::modelLoadFailed);
 
     if (forwardSetup == nullptr)
         forwardSetup = vDSP_DFT_zop_CreateSetup (nullptr, fftSize, vDSP_DFT_FORWARD);
@@ -50,22 +50,22 @@ bool NeuralEnhancer::prepare (double sampleRate, int channels)
         channelStates.resize (static_cast<size_t> (channels));
         reset();
         ready = true;
-        status = Status::active;
+        setStatus (Status::active);
     }
     catch (const Ort::Exception& exception)
     {
-        lastError = juce::String (exception.what());
+        setLastError (juce::String (exception.what()));
         session.reset();
     }
     catch (const std::exception& exception)
     {
-        lastError = juce::String (exception.what());
+        setLastError (juce::String (exception.what()));
         session.reset();
     }
     writeDiagnostics();
     diagnostics::trace ("model prepare rate=" + juce::String (sampleRate, 1)
                         + " ready=" + (ready ? "yes" : "no")
-                        + (lastError.isEmpty() ? juce::String() : " error=" + lastError));
+                        + (getLastError().isEmpty() ? juce::String() : " error=" + getLastError()));
     return ready;
 }
 
@@ -91,6 +91,17 @@ void NeuralEnhancer::initialiseState (std::vector<float>& state)
 // Sandboxed hosts give a plug-in nowhere obvious to report from, and the editor may never
 // be opened. Drop a line into the host's own writable application-data area on every
 // prepare so the engine state can be inspected after the fact.
+void NeuralEnhancer::setStatus (Status value) noexcept
+{
+    status.store (value, std::memory_order_relaxed);
+}
+
+void NeuralEnhancer::setLastError (const juce::String& value)
+{
+    const juce::ScopedLock lock (errorLock);
+    lastError = value;
+}
+
 void NeuralEnhancer::writeDiagnostics() const
 {
     const auto directory = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
@@ -102,14 +113,15 @@ void NeuralEnhancer::writeDiagnostics() const
         file.deleteFile();
     juce::String line;
     line << juce::Time::getCurrentTime().toISO8601 (true)
-         << "  rate=" << juce::String (preparedSampleRate, 1)
+         << "  rate=" << juce::String (getPreparedSampleRate(), 1)
          << "  channels=" << static_cast<int> (channelStates.size())
-         << "  status=" << (status == Status::active ? "active"
-                          : status == Status::unsupportedSampleRate ? "unsupported-sample-rate"
+         << "  status=" << (getStatus() == Status::active ? "active"
+                          : getStatus() == Status::unsupportedSampleRate ? "unsupported-sample-rate"
                           : "model-load-failed")
          << "  modelBytes=" << static_cast<int> (BinaryData::dpdfnet2_48khz_hr_onnxSize);
-    if (lastError.isNotEmpty())
-        line << "  error=" << lastError.replaceCharacters ("\r\n", "  ");
+    const auto error = getLastError();
+    if (error.isNotEmpty())
+        line << "  error=" << error.replaceCharacters ("\r\n", "  ");
     file.appendText (line + "\n");
 }
 

@@ -3,6 +3,7 @@
 // DaVinci Resolve when the bundle, its embedded dylib, or the factory is not sound.
 #include <JuceHeader.h>
 #include <iostream>
+#include <thread>
 
 int main (int argc, char** argv)
 {
@@ -11,6 +12,7 @@ int main (int argc, char** argv)
         std::cout << "usage: ClearRoomHostCheck <path-to.vst3>\n";
         return 2;
     }
+    std::cout << std::unitbuf;   // unbuffered: a hang must not swallow the last line
     const juce::ScopedJuceInitialiser_GUI juceInit;
     const juce::File bundle { juce::String (argv[1]) };
     std::cout << "bundle: " << bundle.getFullPathName() << "\n"
@@ -114,6 +116,47 @@ int main (int argc, char** argv)
                   << "  (latency " << instance->getLatencySamples() << ")\n";
         failures += finite ? 0 : 1;
         instance->releaseResources();
+    }
+
+    // Editor creation through the plug-in wrapper -- the path a DAW takes when it opens
+    // the window, and the one that shows nothing when it fails.
+    std::cout << "\neditor:\n";
+    instance->prepareToPlay (48000.0, 512);
+    if (! instance->hasEditor())
+    {
+        std::cout << "  hasEditor() == false -- the host will never show a window\n";
+        ++failures;
+    }
+    else
+    {
+        auto* editor = instance->createEditorIfNeeded();
+        if (editor == nullptr)
+        {
+            std::cout << "  createEditorIfNeeded() returned NULL -- no window can appear\n";
+            ++failures;
+        }
+        else
+        {
+            std::cout << "  created " << editor->getWidth() << "x" << editor->getHeight() << "\n";
+            if (editor->getWidth() <= 0 || editor->getHeight() <= 0)
+            {
+                std::cout << "  ZERO-SIZED EDITOR -- host shows an empty or invisible window\n";
+                ++failures;
+            }
+            // Force a full paint: a throw or crash here is what a blank window looks like.
+            juce::Image surface (juce::Image::ARGB,
+                                 juce::jmax (1, editor->getWidth()),
+                                 juce::jmax (1, editor->getHeight()), true);
+            {
+                juce::Graphics g (surface);
+                editor->paintEntireComponent (g, true);
+            }
+            std::cout << "  paint: OK\n";
+            // Repaint while the audio thread re-prepares, which is when the editor reads
+            // engine state that prepare() is concurrently writing.
+            instance->editorBeingDeleted (editor);
+            delete editor;
+        }
     }
 
     std::cout << "\nparameters exposed to the host: " << instance->getParameters().size() << "\n";
